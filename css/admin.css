@@ -237,3 +237,6 @@ tr:hover td { background: #F8FAFC; }
   .menu-toggle { display: block; }
   .form-row { grid-template-columns: 1fr; }
 }
+
+/* The hidden attribute must always win over component display rules */
+[hidden] { display: none !important; }
