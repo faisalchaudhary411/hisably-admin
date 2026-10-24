@@ -895,6 +895,7 @@
     if (login(pw)) {
       sessionStorage.removeItem('hisably_cloud');
       showAdmin();
+      toast('Signed in (local mode)');
     } else {
       toast('Wrong password');
     }
