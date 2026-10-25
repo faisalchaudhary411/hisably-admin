@@ -193,6 +193,7 @@
       bankTitle: data.bank_title || '',
       basicPrice: Number(data.basic_price) || 499,
       proPrice: Number(data.pro_price) || 999,
+      lifetimePrice: Number(data.lifetime_price) || 14999,
       currency: data.currency || 'PKR',
       paymentNote: data.payment_note || ''
     };
@@ -210,6 +211,7 @@
       bank_title: s.bankTitle || null,
       basic_price: s.basicPrice,
       pro_price: s.proPrice,
+      lifetime_price: s.lifetimePrice || 14999,
       currency: s.currency || 'PKR',
       payment_note: s.paymentNote || null,
       updated_at: new Date().toISOString()

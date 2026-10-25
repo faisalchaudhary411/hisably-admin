@@ -13,7 +13,8 @@
   const DEFAULT_PLANS = [
     { id: 'free', name: 'Free', price: 0, currency: 'PKR', interval: 'month', shops: 1, features: 'Products, invoices, local data', active: true },
     { id: 'basic', name: 'Basic', price: 499, currency: 'PKR', interval: 'month', shops: 1, features: 'Everything in Free + backup reminders', active: true },
-    { id: 'pro', name: 'Pro', price: 999, currency: 'PKR', interval: 'month', shops: 3, features: 'Multi-device ready, priority support', active: true }
+    { id: 'pro', name: 'Pro', price: 999, currency: 'PKR', interval: 'month', shops: 3, features: 'Multi-device ready, priority support', active: true },
+    { id: 'lifetime', name: 'Lifetime', price: 14999, currency: 'PKR', interval: 'once', shops: 3, features: 'Pro features forever, one-time payment', active: true }
   ];
 
   function load(key, fallback) {
@@ -41,6 +42,7 @@
     bankTitle: '',
     basicPrice: 499,
     proPrice: 999,
+    lifetimePrice: 14999,
     paymentNote: 'Send payment then tap I paid in the app with your shop name.'
   });
 
@@ -83,6 +85,7 @@
   }
   // Paid plans are monthly: activating (or approving a payment) adds 30 days on top of any time left
   function extendPaidUntil(shop, days) {
+    if (shop.planId === 'lifetime') { shop.paidUntil = null; return; }   // lifetime never expires
     const base = Math.max(Date.now(), shop.paidUntil ? new Date(shop.paidUntil).getTime() : 0);
     shop.paidUntil = new Date(base + (days || 30) * 864e5).toISOString();
   }
@@ -372,6 +375,7 @@
             <div class="form-group"><label>Basic price</label><input class="input" name="basicPrice" type="number" value="${adminSettings.basicPrice || 499}" /></div>
             <div class="form-group"><label>Pro price</label><input class="input" name="proPrice" type="number" value="${adminSettings.proPrice || 999}" /></div>
           </div>
+          <div class="form-group"><label>Lifetime price (one-time)</label><input class="input" name="lifetimePrice" type="number" value="${adminSettings.lifetimePrice || 14999}" /></div>
           <div class="form-group"><label>Bank name / account / title</label>
             <input class="input" name="bankName" placeholder="Bank" value="${esc(adminSettings.bankName || '')}" style="margin-bottom:8px" />
             <input class="input" name="bankAccount" placeholder="Account number" value="${esc(adminSettings.bankAccount || '')}" style="margin-bottom:8px" />
@@ -503,7 +507,8 @@
       };
       if (!data.shopName) return;
       // Active paid plan without an end date would never expire -> default to 30 days
-      if (data.status === 'active' && data.planId !== 'free' && !data.paidUntil) {
+      if (data.planId === 'lifetime') data.paidUntil = null;
+      else if (data.status === 'active' && data.planId !== 'free' && !data.paidUntil) {
         const tmp = {}; extendPaidUntil(tmp, 30); data.paidUntil = tmp.paidUntil;
       }
       const target = isEdit ? { ...shop, ...data } : { id: uid(), ...data, createdAt: new Date().toISOString() };
@@ -638,6 +643,7 @@
         adminSettings.bankTitle = (fd.get('bankTitle') || '').trim();
         adminSettings.basicPrice = parseFloat(fd.get('basicPrice')) || 499;
         adminSettings.proPrice = parseFloat(fd.get('proPrice')) || 999;
+        adminSettings.lifetimePrice = parseFloat(fd.get('lifetimePrice')) || 14999;
         adminSettings.paymentNote = (fd.get('paymentNote') || '').trim();
         // Publish payment details for seller app (same browser / shared origin)
         localStorage.setItem('hisably_platform_pay_v1', JSON.stringify({
@@ -649,6 +655,7 @@
           note: adminSettings.paymentNote,
           basicPrice: adminSettings.basicPrice,
           proPrice: adminSettings.proPrice,
+          lifetimePrice: adminSettings.lifetimePrice,
           currency: adminSettings.currency,
           freemiumEnabled: adminSettings.freemiumEnabled
         }));
@@ -725,7 +732,7 @@
     }
     const upd = { ...shop, status: 'active', planId: r.plan || 'basic' };
     extendPaidUntil(upd, 30);
-    const ok = await saveShopChange(shop, upd, 'Payment approved · shop active for 30 days');
+    const ok = await saveShopChange(shop, upd, upd.planId === 'lifetime' ? 'Payment approved · Lifetime plan activated' : 'Payment approved · shop active for 30 days');
     if (!ok) return;
     try {
       if (cloudOn()) await window.HisablyAdminCloud.resolvePayment(rid, 'approved');
